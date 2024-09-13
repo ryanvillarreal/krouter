@@ -1,4 +1,5 @@
 # Krouter
+<img src="images/logo.png" alt="Krouter Logo" width="200" height="200">
 This Python script configures Kali Linux to function as a router, DHCP, and DNS server. Additionally, it facilitates Man-in-the-Middle (MitM) attacks using Mitmproxy and Wireshark.
 Features
 
@@ -124,7 +125,7 @@ Firewall - Enable/disable mitmproxy rules
 *Note: Fire icon present when the FW rule is enabled.
 ### Screenshot
 
-<img src="images/screenshot.png" alt="Krouter Logo" width="800" height="800">
+<img src="images/screenshot.png" alt="Krouter Screenshot" width="800" height="800">
 
 ### Future Plans
 

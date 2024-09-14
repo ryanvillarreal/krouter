@@ -128,7 +128,7 @@ Firewall - Enable/disable mitmproxy rules
 *Note: Fire icon present when the FW rule is enabled.
 ### Screenshot
 
-<img src="images/screenshot.png" alt="Krouter Screenshot" width="800" height="800">
+<img src="images/screenshot.png" alt="Krouter Screenshot" width="600" height="600">
 
 ### Future Plans
 

@@ -76,12 +76,77 @@ option = auto lo
 	netmask 64
 	iface ${interface:lan} inet static
 	address 192.168.52.1/24
-	# Wireless Interface
-	auto ${interface:wlan}
-	iface ${interface:wlan} inet static
-	address 192.168.42.1/24
+	## Wireless Interface
+	#auto ${interface:wlan}
+	#iface ${interface:wlan} inet static
+	#address 192.168.42.1/24
 ...
 [TRUNCATED]
+...
+
+```
+
+### Wireless Access Point Configuration
+
+Set wireless interface under '[interface]' 'wlan'.
+
+```
+
+[interface]
+wan = eth0
+lan = eth1
+wlan = wlan0
+
+```
+
+Uncomment the 'Wireless Interface' areas unders the '[network-interfaces]' and '[dhclient]' sections.
+
+```
+[network-interfaces]
+fp = /etc/network/interfaces
+option = auto lo
+	iface lo inet loopback
+	auto ${interface:lan}
+	iface ${interface:lan} inet6 static
+	address 2001:db8:0:1::10
+	netmask 64
+	iface ${interface:lan} inet static
+	address 192.168.52.1/24
+	# # Wireless Interface
+	# auto ${interface:wlan}
+	# iface ${interface:wlan} inet static
+	# address 192.168.42.1/24
+
+[dhclient]
+fp = /etc/dhcpcd.conf
+option = interface ${interface:lan}
+	static ip_address=192.168.52.1/24
+	static ip6_address=2001:db8:0:1::10/64
+	nohook wpa_supplicant
+	# # Wireless Interface
+	# interface ${interface:wlan}
+	# static ip_address=192.168.42.1/24
+	# nohook wpa_supplicant
+...
+
+```
+
+Set SSID and Pre-Shared Key under '[hostapd]' 'ssid' and 'wpa_passphrase'.
+
+```
+[hostapd]
+fp = /etc/hostapd/hostapd.conf
+option = interface=${interface:wlan}
+	ssid=krouter
+	channel=7
+	macaddr_acl=0
+	auth_algs=1
+	wmm_enabled=0
+	wpa=2
+	wpa_passphrase=KaliRouter31337
+	wpa_key_mgmt=WPA-PSK
+	wpa_pairwise=TKIP
+	rsn_pairwise=CCMP
 ...
 
 ```

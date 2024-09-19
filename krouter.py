@@ -340,7 +340,8 @@ class Session:
         service_lst = []
         for service in self.services:
             result = self.check_service_status(service)
-            service_lst.append(f'{wp}{result}')
+            if result is not None:
+                service_lst.append(f'{wp}{result}')
         list_text = r.Text("\n".join(service_lst))
         service_panel = r.Panel(f'Services:\n{list_text}')
         r.console.print(service_panel)

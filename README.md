@@ -7,7 +7,7 @@ This Python script configures Kali Linux to function as a router, DHCP, and DNS 
 Features
 
 - Router Configuration: Sets up Kali Linux as a network router.
-- DHCP Server: Configures DHCP server to assign IP addresses to connected devices.
+- DHCP/DHCPv6 Server: Configures DHCP server to assign IP addresses to connected devices.
 - DNS Server: Sets up DNS server for domain name resolution.
 - MitM Attack Facilitation: Leverages Mitmproxy and Wireshark for traffic interception and analysis.
 ### Requirements

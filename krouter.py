@@ -22,12 +22,13 @@ import time
 app_filepath = __file__
 app_dir = os.path.dirname(__file__)
 bckup_dir = os.path.join(app_dir, "backups")
+hostapd_dir = "/etc/hostapd"
 
 # App - relative filepaths.
 config_ini_fp = "configs/config.ini"
 
 # Create required dirs.
-directories = [bckup_dir]
+directories = [bckup_dir, hostapd_dir]
 dirs = [mkdir.mkdir(directory) for directory in directories]
 [print(f"Created directory: {d}") for d in dirs if d is not None]
 [r.logging.warning(f"Missing directory was created: {d}") for d in dirs if d is not None]

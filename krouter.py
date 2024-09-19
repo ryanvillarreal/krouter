@@ -112,11 +112,11 @@ def run_cmd(cmd):
 
 class BaseMenu:
     opt_packages_install = "[-] Packages - Install required packages"
-    opt_packages_view = "[-] Packages - Show/hide installed packages (t)"
+    opt_packages_view = "[-] Packages - Show/hide installed packages"
     opt_services_start = "[-] Services - Enable & start services"
     opt_services_restart = "[-] Services - Restart services"
-    opt_firewall_toggle = "[-] Firewall - Enable/disable firewall rules (t)"
-    opt_firewall_mitmproxy_toggle = "[-] Firewall - Enable/disable mitmproxy rules (t)"
+    opt_firewall_toggle = "[-] Firewall - Enable/disable firewall rules"
+    opt_firewall_mitmproxy_toggle = "[-] Firewall - Enable/disable mitmproxy rules"
     opt_dhcp_leases_refresh = "[-] DHCP Leases - Refresh screen to view new leases"
     opt_exit = "[-] Exit"
     opt_back = "[-] Back"
@@ -365,7 +365,7 @@ def main():
     config_obj = read_ini(config_ini_fp, delimiters='=')
 
     # Services List
-    service_lst = ['networking.service', 'isc-dhcp-server','radvd','dnsmasq']
+    service_lst = ['networking.service', 'isc-dhcp-server', 'radvd', 'dnsmasq', 'hostapd']
 
     # Session Manager
     session = Session(config_obj, service_lst)
@@ -416,10 +416,6 @@ def main():
     except Exception as e:
         raise e
     else:
-        # # Fix DHCPDv4 lease issue.
-        # manage_service('stop', 'isc-dhcp-server')
-        # time.sleep(1)
-        # manage_service('start', 'isc-dhcp-server')
         wrote_config_files = True
 
     while True:
@@ -451,7 +447,12 @@ def main():
         # Services - Start
         elif selected_main_menu_item == main_menu.opt_services_start:
             for service in service_lst:
+                if service == 'hostapd':
+                    manage_service('unmask', service)
+
+            for service in service_lst:
                 manage_service('enable', service)
+
             for service in service_lst:
                 manage_service('start', service)
             # reload sysctl

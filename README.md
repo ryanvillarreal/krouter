@@ -7,8 +7,9 @@ This Python script configures Kali Linux to function as a router, DHCP, and DNS 
 Features
 
 - Router Configuration: Sets up Kali Linux as a network router.
-- DHCP/DHCPv6 Server: Configures DHCP server to assign IP addresses to connected devices.
+- DHCP Server: Configures DHCP server to assign IP addresses to connected devices.
 - DNS Server: Sets up DNS server for domain name resolution.
+- Wireless Access Point: Configures a wireless access point using hostapd.
 - MitM Attack Facilitation: Leverages Mitmproxy and Wireshark for traffic interception and analysis.
 ### Requirements
 
@@ -41,11 +42,15 @@ Example config.ini:
 [interface]
 wan = eth0
 lan = eth1
+wlan = wlan0
 
 [firewall-router]
 rule1 = sudo iptables -A FORWARD -i ${interface:wan} -o ${interface:lan} -m state --state RELATED,ESTABLISHED -j ACCEPT
 rule2 = sudo iptables -A FORWARD -i ${interface:lan} -o ${interface:wan} -j ACCEPT
 rule3 = sudo iptables -t nat -A POSTROUTING -o ${interface:wan} -j MASQUERADE
+# Wireless Interface
+rule4 = sudo iptables -A FORWARD -i ${interface:wan} -o ${interface:wlan} -m state --state RELATED,ESTABLISHED -j ACCEPT
+rule5 = sudo iptables -A FORWARD -i ${interface:wlan} -o ${interface:wan} -j ACCEPT
 
 [firewall-mitmproxy]
 rule1 = sudo iptables -t nat -A PREROUTING -i ${interface:lan} -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 8080
@@ -53,6 +58,7 @@ rule2 = sudo iptables -t nat -A PREROUTING -i ${interface:lan} -p tcp -m tcp --d
 
 [packages]
 dnsmasq
+hostapd
 iptables
 iptables-persistent
 isc-dhcp-server
@@ -70,6 +76,10 @@ option = auto lo
 	netmask 64
 	iface ${interface:lan} inet static
 	address 192.168.52.1/24
+	# Wireless Interface
+	auto ${interface:wlan}
+	iface ${interface:wlan} inet static
+	address 192.168.42.1/24
 ...
 [TRUNCATED]
 ...
@@ -129,10 +139,6 @@ Firewall - Enable/disable mitmproxy rules
 ### Screenshot
 
 <img src="images/screenshot.png" alt="Krouter Screenshot" width="500" height="500">
-
-### Future Plans
-
-Wireless Access Point Support: Upcoming releases will include support for configuring a wireless access point using hostapd.
 
 ### Disclaimer
 

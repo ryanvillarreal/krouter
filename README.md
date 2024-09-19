@@ -91,12 +91,10 @@ option = auto lo
 Set wireless interface under '[interface]' 'wlan'.
 
 ```
-
 [interface]
 wan = eth0
 lan = eth1
 wlan = wlan0
-
 ```
 
 Uncomment the 'Wireless Interface' areas unders the '[network-interfaces]' and '[dhclient]' sections.
@@ -127,8 +125,6 @@ option = interface ${interface:lan}
 	# interface ${interface:wlan}
 	# static ip_address=192.168.42.1/24
 	# nohook wpa_supplicant
-...
-
 ```
 
 Set SSID and Pre-Shared Key under '[hostapd]' 'ssid' and 'wpa_passphrase'.
@@ -147,8 +143,6 @@ option = interface=${interface:wlan}
 	wpa_key_mgmt=WPA-PSK
 	wpa_pairwise=TKIP
 	rsn_pairwise=CCMP
-...
-
 ```
 
 ### Install Packages

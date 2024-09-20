@@ -225,6 +225,19 @@ class Session:
                 print(f'An error occurred: {e}')
         return self.mitm_lst
 
+    def parse_hostapd_config(self, file_path):
+        ''' Parse hostapd config file '''
+        hostapd_lst = []
+        with open(file_path, 'r') as file:
+            for line in file:
+                if line.startswith('ssid='):
+                    ssid = f"SSID: {line.split('=')[1].strip()}"
+                    hostapd_lst.append(ssid)
+                elif line.startswith('wpa_passphrase='):
+                    psk = f"PSK: {line.split('=')[1].strip()}"
+                    hostapd_lst.append(psk)
+        return hostapd_lst
+
     def check_package_installed(self, package):
         ''' Sets icon based on package installation status. '''
         try:
@@ -314,6 +327,15 @@ class Session:
                         ip_lst.append(f'{wp}{interface}: {addr.address}')
         list_text = r.Text("\n".join(ip_lst))
         service_panel = r.Panel(f'IP Addresses:\n{list_text}')
+        r.console.print(service_panel)
+
+        # Hostapd:
+        hostapd_lst = []
+        hostapd_fp = self.cp_obj['hostapd']['fp']
+        for item in self.parse_hostapd_config(hostapd_fp):
+            hostapd_lst.append(f"{wp}{item}")
+        list_text = r.Text("\n".join(hostapd_lst))
+        service_panel = r.Panel(f'Wireless:\n{list_text}')
         r.console.print(service_panel)
 
         # Firewall:

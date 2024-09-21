@@ -234,8 +234,17 @@ class Session:
                     ssid = f"SSID: {line.split('=')[1].strip()}"
                     hostapd_lst.append(ssid)
                 elif line.startswith('wpa_passphrase='):
-                    psk = f"PSK: {line.split('=')[1].strip()}"
+                    psk = f" PSK: {line.split('=')[1].strip()}"
                     hostapd_lst.append(psk)
+                elif line.startswith('ieee80211w='):
+                    ieee80211w = f"{line.split('=')[1].strip()}"
+                    if ieee80211w == '0':
+                        ieee80211w = f" MFP: 0 (Disabled)"
+                    elif ieee80211w == '1':
+                        ieee80211w = f" MFP: 1 (Optional)"
+                    elif ieee80211w == '2':
+                        ieee80211w = f" MFP: 2 (Required)"
+                    hostapd_lst.append(ieee80211w)
         return hostapd_lst
 
     def check_package_installed(self, package):

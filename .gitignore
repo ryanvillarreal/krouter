@@ -2,6 +2,8 @@
 backups
 # don't store the bin
 krouter
+# dont' store the leases
+lease*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

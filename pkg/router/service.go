@@ -2,6 +2,7 @@ package router
 
 import (
         "context"
+        "fmt"
         "log"
         "sync"
         "sync/atomic"
@@ -9,6 +10,7 @@ import (
 
         "github.com/ryanvillarreal/krouter/pkg/config"
         "github.com/ryanvillarreal/krouter/pkg/dhcp"
+        "github.com/ryanvillarreal/krouter/pkg/dns"
 )
 
 type Status struct {
@@ -27,7 +29,8 @@ type Service struct {
         ticker  *time.Ticker
         // key objs
         ifManager *InterfaceManager
-        dhcp     *dhcp.Service
+        dhcp      *dhcp.Service
+        dns       *dns.DNSProxy
 }
 
 func New(cfg *config.Config) (*Service, error) {
@@ -39,28 +42,32 @@ func New(cfg *config.Config) (*Service, error) {
                 ticker: time.NewTicker(5 * time.Second),
                 ifManager: NewInterfaceManager(cfg),
                 dhcp:   dhcp.NewDHCPService(cfg),
+                dns:    dns.NewDNSProxy(cfg),
         }
 
         s.status.healthy.Store(true)
         return s, nil
 }
 
-func (s *Service) IsHealthy() bool {
-        return s.status.healthy.Load()
-}
-
-func (s *Service) performHealthCheck() {
-        // For now, just update lastCheck time
-        s.status.lastCheck = time.Now()
-        healthy := s.status.healthy.Load()
-        log.Printf("Health Check - Status: %v, Last Check: %s",
-          healthy, 
-          s.status.lastCheck.Format(time.RFC3339))
-}
-
 func (s *Service) Start() error {
         log.Printf("Starting router service on interfaces \nLAN: %s \nWAN: %s",
-                s.cfg.Interfaces.LAN, s.cfg.Interfaces.WAN)
+                s.cfg.Interfaces.LAN.Iface, s.cfg.Interfaces.WAN)
+
+        // Start interface configuration
+        if s.ifManager == nil {
+                return fmt.Errorf("interface manager initialization failed")
+        }
+
+        // Start DHCP service
+        if err := s.dhcp.Start(); err != nil {
+                return fmt.Errorf("failed to start DHCP service: %w", err)
+        }
+
+        // Start DNS service
+        if err := s.dns.Start(); err != nil {
+                s.dhcp.Stop() // cleanup on failure
+                return fmt.Errorf("failed to start DNS service: %w", err)
+        }
 
         s.wg.Add(1)
         go func() {
@@ -68,7 +75,46 @@ func (s *Service) Start() error {
                 s.run()
         }()
 
+        // Monitor services for errors
+        go s.monitorServices()
+
         return nil
+}
+
+func (s *Service) monitorServices() {
+        for {
+                select {
+                case err := <-s.dhcp.Errors():
+                        log.Printf("DHCP service error: %v", err)
+                        s.status.healthy.Store(false)
+                case err := <-s.dns.Errors():
+                        log.Printf("DNS service error: %v", err)
+                        s.status.healthy.Store(false)
+                case <-s.ctx.Done():
+                        return
+                }
+        }
+}
+
+func (s *Service) Stop() {
+        s.ticker.Stop()
+        s.dns.Stop()
+        s.dhcp.Stop()
+        s.cancel()
+        s.wg.Wait()
+        log.Println("Router service stopped")
+}
+
+func (s *Service) IsHealthy() bool {
+        return s.status.healthy.Load()
+}
+
+func (s *Service) performHealthCheck() {
+        s.status.lastCheck = time.Now()
+        healthy := s.status.healthy.Load()
+        log.Printf("Health Check - Status: %v, Last Check: %s",
+          healthy,
+          s.status.lastCheck.Format(time.RFC3339))
 }
 
 func (s *Service) run() {
@@ -81,11 +127,4 @@ func (s *Service) run() {
                         s.performHealthCheck()
                 }
         }
-}
-
-func (s *Service) Stop() {
-        s.ticker.Stop()
-        s.cancel()
-        s.wg.Wait()
-        log.Println("Router service stopped")
 }

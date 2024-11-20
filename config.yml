@@ -1,11 +1,24 @@
 ---
 interfaces:
   lan:
-    iface: "enx000ec677b5a6"
-    ipv4: "192.168.52.1/24"
-    ipv6: "2001:db8:0:1::1/64"
+    iface: enx000ec677b5a6
+    ipv4: "192.168.1.1/24"
+    ipv6: "fd00::1/64"
   wan: "wlp0s20f3"
-configs:
-  coredns_config: "coredns.yml"
-  coredhcp_config: "coredhcp.yml"
 
+dns:
+  upstream:
+    ipv4:
+      - "1.1.1.1"
+      - "8.8.8.8"
+    ipv6:
+      - "2606:4700:4700::1111"
+      - "2001:4860:4860::8888"
+  local_domains:
+    - name: "acme.local"
+      ipv4: ["192.168.1.1"]
+      ipv6: ["fd00::1"]
+    - name: "remote.acme.local"
+      ipv4: ["192.168.1.2"]
+      ipv6: ["fd00::2"]
+    

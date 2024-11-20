@@ -1,0 +1,114 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"gopkg.in/yaml.v3"
+)
+
+// CoreDHCPConfig represents the complete CoreDHCP configuration
+type CoreDHCPConfig struct {
+	Server4 *DHCPv4Config `yaml:"server4,omitempty"`
+	Server6 *DHCPv6Config `yaml:"server6,omitempty"`
+}
+
+// DHCPv4Config represents the IPv4-specific configuration
+type DHCPv4Config struct {
+	Listen  []string        `yaml:"listen,omitempty"`
+	Plugins []PluginConfig `yaml:"plugins"`
+}
+
+// DHCPv6Config represents the IPv6-specific configuration
+type DHCPv6Config struct {
+	Listen  []string        `yaml:"listen,omitempty"`
+	Plugins []PluginConfig `yaml:"plugins"`
+}
+
+// PluginConfig represents a single plugin configuration
+type PluginConfig map[string]interface{}
+
+// NewCoreDHCPConfig creates a new CoreDHCP configuration with default values
+func NewCoreDHCPConfig() *CoreDHCPConfig {
+	return &CoreDHCPConfig{
+		Server4: &DHCPv4Config{
+			Listen:  []string{"0.0.0.0"},
+			Plugins: make([]PluginConfig, 0),
+		},
+		Server6: &DHCPv6Config{
+			Listen:  []string{"[ff02::1:2]", "[ff05::1:3]"},
+			Plugins: make([]PluginConfig, 0),
+		},
+	}
+}
+
+// AddDHCPv4Plugin adds a plugin to the DHCPv4 configuration
+func (c *CoreDHCPConfig) AddDHCPv4Plugin(name string, args interface{}) {
+	plugin := PluginConfig{
+		name: args,
+	}
+	c.Server4.Plugins = append(c.Server4.Plugins, plugin)
+}
+
+// AddDHCPv6Plugin adds a plugin to the DHCPv6 configuration
+func (c *CoreDHCPConfig) AddDHCPv6Plugin(name string, args interface{}) {
+	plugin := PluginConfig{
+		name: args,
+	}
+	c.Server6.Plugins = append(c.Server6.Plugins, plugin)
+}
+
+// Common configuration helper functions
+func (c *CoreDHCPConfig) SetDHCPv4LeaseTime(duration time.Duration) {
+	c.AddDHCPv4Plugin("lease_time", duration.String())
+}
+
+func (c *CoreDHCPConfig) SetDHCPv4ServerID(ip string) {
+	c.AddDHCPv4Plugin("server_id", ip)
+}
+
+func (c *CoreDHCPConfig) SetDHCPv4DNS(resolvers ...string) {
+	c.AddDHCPv4Plugin("dns", resolvers)
+}
+
+func (c *CoreDHCPConfig) SetDHCPv6ServerID(duidType string, address string) {
+	c.AddDHCPv6Plugin("server_id", fmt.Sprintf("%s %s", duidType, address))
+}
+
+func (c *CoreDHCPConfig) SetDHCPv6DNS(resolvers ...string) {
+	c.AddDHCPv6Plugin("dns", resolvers)
+}
+
+func (c *CoreDHCPConfig) SetDHCPv6Prefix(prefix string, allocationSize int) {
+	c.AddDHCPv6Plugin("prefix", fmt.Sprintf("%s %d", prefix, allocationSize))
+}
+
+// SaveToFile saves the configuration to a YAML file
+func (c *CoreDHCPConfig) SaveToFile(filename string) error {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("marshaling config: %w", err)
+	}
+
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("writing config file: %w", err)
+	}
+
+	return nil
+}
+
+// LoadFromFile loads the configuration from a YAML file
+func LoadFromFile(filename string) (*CoreDHCPConfig, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("reading config file: %w", err)
+	}
+
+	config := &CoreDHCPConfig{}
+	if err := yaml.Unmarshal(data, config); err != nil {
+		return nil, fmt.Errorf("parsing config file: %w", err)
+	}
+
+	return config, nil
+}

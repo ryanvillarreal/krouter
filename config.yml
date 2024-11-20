@@ -1,0 +1,11 @@
+---
+interfaces:
+  lan:
+    iface: "enx000ec677b5a6"
+    ipv4: "192.168.52.1/24"
+    ipv6: "2001:db8:0:1::1/64"
+  wan: "wlp0s20f3"
+configs:
+  coredns_config: "coredns.yml"
+  coredhcp_config: "coredhcp.yml"
+

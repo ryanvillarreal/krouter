@@ -1,0 +1,167 @@
+package config
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"strings"
+)
+
+// CoreDNSConfig represents the complete CoreDNS configuration
+type CoreDNSConfig struct {
+	Servers []ServerBlock `json:"servers"`
+}
+
+// ServerBlock represents a single server block in CoreDNS configuration
+type ServerBlock struct {
+	Name     string        `json:"name"`     // The zone or port to listen on
+	Port     int          `json:"port"`      // Port number
+	Plugins  []PluginBlock `json:"plugins"`  // List of plugins for this server
+	Protocol string        `json:"protocol"` // Protocol (dns, grpc, etc.)
+}
+
+// PluginBlock represents a CoreDNS plugin configuration
+type PluginBlock struct {
+	Name       string            `json:"name"`
+	Args       []string          `json:"args,omitempty"`
+	Properties map[string]string `json:"properties,omitempty"`
+}
+
+// NewCoreDNSConfig creates a new CoreDNS configuration
+func NewCoreDNSConfig() *CoreDNSConfig {
+	return &CoreDNSConfig{
+		Servers: make([]ServerBlock, 0),
+	}
+}
+
+// AddServer adds a new server block to the configuration
+func (c *CoreDNSConfig) AddServer(name string, port int) *ServerBlock {
+	server := ServerBlock{
+		Name:     name,
+		Port:     port,
+		Plugins:  make([]PluginBlock, 0),
+		Protocol: "dns",
+	}
+	c.Servers = append(c.Servers, server)
+	return &c.Servers[len(c.Servers)-1]
+}
+
+// AddPlugin adds a plugin to a server block
+func (s *ServerBlock) AddPlugin(name string, args ...string) *PluginBlock {
+	plugin := PluginBlock{
+		Name:       name,
+		Args:       args,
+		Properties: make(map[string]string),
+	}
+	s.Plugins = append(s.Plugins, plugin)
+	return &s.Plugins[len(s.Plugins)-1]
+}
+
+// AddProperty adds a property to a plugin block
+func (p *PluginBlock) AddProperty(key, value string) {
+	p.Properties[key] = value
+}
+
+// Common configuration helper functions
+
+// ConfigureForward configures the forward plugin
+func (s *ServerBlock) ConfigureForward(upstreamServers ...string) *PluginBlock {
+	return s.AddPlugin("forward", ".", strings.Join(upstreamServers, " "))
+}
+
+// ConfigureCache configures the cache plugin
+func (s *ServerBlock) ConfigureCache(ttl int) *PluginBlock {
+	return s.AddPlugin("cache", fmt.Sprintf("%d", ttl))
+}
+
+// ConfigureHosts configures the hosts plugin
+func (s *ServerBlock) ConfigureHosts(path string, domains ...string) *PluginBlock {
+	args := append([]string{path}, domains...)
+	return s.AddPlugin("hosts", args...)
+}
+
+// ConfigureLog configures the log plugin
+func (s *ServerBlock) ConfigureLog() *PluginBlock {
+	return s.AddPlugin("log")
+}
+
+// ConfigureErrors configures the errors plugin
+func (s *ServerBlock) ConfigureErrors() *PluginBlock {
+	return s.AddPlugin("errors")
+}
+
+// ConfigureHealth configures the health plugin
+func (s *ServerBlock) ConfigureHealth(port int) *PluginBlock {
+	return s.AddPlugin("health", fmt.Sprintf(":%d", port))
+}
+
+// ConfigureMetrics configures the prometheus metrics plugin
+func (s *ServerBlock) ConfigureMetrics(port int) *PluginBlock {
+	return s.AddPlugin("prometheus", fmt.Sprintf(":%d", port))
+}
+
+// ConfigureAuto configures the auto plugin for zone files
+func (s *ServerBlock) ConfigureAuto(directory string) *PluginBlock {
+	plugin := s.AddPlugin("auto", directory)
+	plugin.AddProperty("reload", "10s")
+	return plugin
+}
+
+// SaveToFile generates the Corefile format and saves it
+func (c *CoreDNSConfig) SaveToFile(filename string) error {
+	content := c.generateCorefile()
+	return os.WriteFile(filename, []byte(content), 0644)
+}
+
+// generateCorefile generates the CoreDNS configuration file content
+func (c *CoreDNSConfig) generateCorefile() string {
+	var buffer bytes.Buffer
+
+	for _, server := range c.Servers {
+		// Write server block header
+		if server.Port != 0 {
+			buffer.WriteString(fmt.Sprintf("%s:%d {\n", server.Name, server.Port))
+		} else {
+			buffer.WriteString(fmt.Sprintf("%s {\n", server.Name))
+		}
+
+		// Write plugins
+		for _, plugin := range server.Plugins {
+			// Plugin name and args
+			if len(plugin.Args) > 0 {
+				buffer.WriteString(fmt.Sprintf("    %s %s", plugin.Name, strings.Join(plugin.Args, " ")))
+			} else {
+				buffer.WriteString(fmt.Sprintf("    %s", plugin.Name))
+			}
+
+			// Plugin properties
+			if len(plugin.Properties) > 0 {
+				buffer.WriteString(" {\n")
+				for key, value := range plugin.Properties {
+					buffer.WriteString(fmt.Sprintf("        %s %s\n", key, value))
+				}
+				buffer.WriteString("    }\n")
+			} else {
+				buffer.WriteString("\n")
+			}
+		}
+
+		buffer.WriteString("}\n\n")
+	}
+
+	return buffer.String()
+}
+
+// LoadFromFile loads a CoreDNS configuration from a Corefile
+// Note: This is a basic implementation and might need to be enhanced based on your needs
+func LoadFromFile(filename string) (*CoreDNSConfig, error) {
+	_, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("reading config file: %w", err)
+	}
+
+	// TODO: Implement parsing of existing Corefile
+	// This is more complex as it requires parsing the Corefile format
+	// For now, return a new empty config
+	return NewCoreDNSConfig(), nil
+}

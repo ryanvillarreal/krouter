@@ -1,0 +1,255 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+// MitmConfig represents the main mitmproxy configuration
+type MitmConfig struct {
+	Listen             ListenOptions     `yaml:"listen"`
+	Mode               string            `yaml:"mode"`              // regular, transparent, socks5, reverse:url, upstream:url
+	ShowHost           bool              `yaml:"show_host"`
+	AntiCache          bool              `yaml:"anticache"`
+	SSL                SSLOptions        `yaml:"ssl"`
+	Client             ClientOptions     `yaml:"client"`
+	Server             ServerOptions     `yaml:"server"`
+	Proxy              ProxyOptions      `yaml:"proxy"`
+	Scripts            []string          `yaml:"scripts"`
+	Filters           []string          `yaml:"filters"`
+	CustomHeaders     map[string]string `yaml:"custom_headers"`
+	BlockList         []string          `yaml:"block_list"`
+	Logging           LoggingOptions    `yaml:"logging"`
+}
+
+// ListenOptions configures how mitmproxy listens for connections
+type ListenOptions struct {
+	Host    string `yaml:"host"`
+	Port    int    `yaml:"port"`
+	WebPort int    `yaml:"web_port,omitempty"`
+}
+
+// SSLOptions configures SSL/TLS handling
+type SSLOptions struct {
+	Insecure         bool   `yaml:"insecure"`
+	CertFile         string `yaml:"cert_file,omitempty"`
+	KeyFile          string `yaml:"key_file,omitempty"`
+	CertDir          string `yaml:"cert_dir,omitempty"`
+	SSLVersionMin    string `yaml:"ssl_version_min,omitempty"`
+	SSLVersionMax    string `yaml:"ssl_version_max,omitempty"`
+	VerifyUpstream   bool   `yaml:"verify_upstream"`
+	ClientCerts      []string `yaml:"client_certs,omitempty"`
+	CipherList       []string `yaml:"ciphers,omitempty"`
+}
+
+// ClientOptions configures client-side behavior
+type ClientOptions struct {
+	CertFile    string `yaml:"cert_file,omitempty"`
+	KeyFile     string `yaml:"key_file,omitempty"`
+	Ciphers     []string `yaml:"ciphers,omitempty"`
+	Replay      bool     `yaml:"replay"`
+	ReplayKiller bool    `yaml:"replay_killer"`
+}
+
+// ServerOptions configures server-side behavior
+type ServerOptions struct {
+	ConnectTimeout  int      `yaml:"connect_timeout"`
+	CertForward    bool     `yaml:"cert_forward"`
+	UpstreamAuth   string   `yaml:"upstream_auth,omitempty"`
+	Http2          bool     `yaml:"http2"`
+	RawtCP         bool     `yaml:"raw_tcp"`
+}
+
+// ProxyOptions configures proxy behavior
+type ProxyOptions struct {
+	Authentication string   `yaml:"auth,omitempty"`
+	UpstreamProxy string   `yaml:"upstream_proxy,omitempty"`
+	NoUpstream    bool     `yaml:"no_upstream"`
+	StickyCookie  string   `yaml:"sticky_cookie,omitempty"`
+	StickyAuth    bool     `yaml:"sticky_auth"`
+}
+
+// LoggingOptions configures logging behavior
+type LoggingOptions struct {
+	Verbose     bool   `yaml:"verbose"`
+	Quiet       bool   `yaml:"quiet"`
+	LogFile     string `yaml:"log_file,omitempty"`
+	FlowDetail  int    `yaml:"flow_detail"`
+}
+
+// NewMitmConfig creates a new mitmproxy configuration with default values
+func NewMitmConfig() *MitmConfig {
+	return &MitmConfig{
+		Listen: ListenOptions{
+			Host: "0.0.0.0",
+			Port: 8080,
+		},
+		Mode:      "regular",
+		ShowHost:  true,
+		AntiCache: false,
+		SSL: SSLOptions{
+			Insecure:       false,
+			VerifyUpstream: true,
+		},
+		Server: ServerOptions{
+			ConnectTimeout: 5000,
+			Http2:         true,
+		},
+		CustomHeaders: make(map[string]string),
+		BlockList:    make([]string, 0),
+		Scripts:      make([]string, 0),
+		Filters:     make([]string, 0),
+	}
+}
+
+// Set Mode Configuration
+func (c *MitmConfig) SetMode(mode string, target string) error {
+	validModes := map[string]bool{
+		"regular":     true,
+		"transparent": true,
+		"socks5":      true,
+		"reverse":     true,
+		"upstream":    true,
+	}
+
+	baseMode := strings.Split(mode, ":")[0]
+	if !validModes[baseMode] {
+		return fmt.Errorf("invalid mode: %s", mode)
+	}
+
+	if (baseMode == "reverse" || baseMode == "upstream") && target == "" {
+		return fmt.Errorf("%s mode requires a target URL", mode)
+	}
+
+	if target != "" {
+		c.Mode = fmt.Sprintf("%s:%s", mode, target)
+	} else {
+		c.Mode = mode
+	}
+	return nil
+}
+
+// Configure SSL Options
+func (c *MitmConfig) ConfigureSSL(certFile, keyFile, certDir string) {
+	c.SSL.CertFile = certFile
+	c.SSL.KeyFile = keyFile
+	c.SSL.CertDir = certDir
+}
+
+// Add Script
+func (c *MitmConfig) AddScript(scriptPath string) error {
+	if _, err := os.Stat(scriptPath); err != nil {
+		return fmt.Errorf("script file not found: %s", scriptPath)
+	}
+	c.Scripts = append(c.Scripts, scriptPath)
+	return nil
+}
+
+// Add Filter
+func (c *MitmConfig) AddFilter(filter string) {
+	c.Filters = append(c.Filters, filter)
+}
+
+// Add Custom Header
+func (c *MitmConfig) AddCustomHeader(name, value string) {
+	c.CustomHeaders[name] = value
+}
+
+// Add Block List Entry
+func (c *MitmConfig) AddBlockListEntry(pattern string) {
+	c.BlockList = append(c.BlockList, pattern)
+}
+
+// Configure Logging
+func (c *MitmConfig) ConfigureLogging(verbose bool, logFile string, flowDetail int) {
+	c.Logging.Verbose = verbose
+	c.Logging.LogFile = logFile
+	c.Logging.FlowDetail = flowDetail
+}
+
+// Configure Authentication
+func (c *MitmConfig) ConfigureAuth(username, password string) {
+	if username != "" && password != "" {
+		c.Proxy.Authentication = fmt.Sprintf("%s:%s", username, password)
+	}
+}
+
+// Configure Upstream Proxy
+func (c *MitmConfig) ConfigureUpstreamProxy(proxyURL string) {
+	c.Proxy.UpstreamProxy = proxyURL
+}
+
+// SaveToFile saves the configuration to a file
+func (c *MitmConfig) SaveToFile(filename string) error {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("marshaling config: %w", err)
+	}
+
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("writing config file: %w", err)
+	}
+
+	return nil
+}
+
+// GenerateCommandLine generates mitmproxy command line arguments
+func (c *MitmConfig) GenerateCommandLine() string {
+	var args []string
+
+	// Basic options
+	args = append(args, fmt.Sprintf("--listen-host %s", c.Listen.Host))
+	args = append(args, fmt.Sprintf("--listen-port %d", c.Listen.Port))
+	
+	if c.Mode != "regular" {
+		args = append(args, fmt.Sprintf("--mode %s", c.Mode))
+	}
+
+	// SSL options
+	if c.SSL.Insecure {
+		args = append(args, "--ssl-insecure")
+	}
+	if c.SSL.CertFile != "" {
+		args = append(args, fmt.Sprintf("--cert %s", c.SSL.CertFile))
+	}
+
+	// Scripts
+	for _, script := range c.Scripts {
+		args = append(args, fmt.Sprintf("--scripts %s", script))
+	}
+
+	// Filters
+	for _, filter := range c.Filters {
+		args = append(args, fmt.Sprintf("--filter %s", filter))
+	}
+
+	// Custom headers
+	for name, value := range c.CustomHeaders {
+		args = append(args, fmt.Sprintf("--setheader %s:%s", name, value))
+	}
+
+	// Block list
+	for _, pattern := range c.BlockList {
+		args = append(args, fmt.Sprintf("--block %s", pattern))
+	}
+
+	return strings.Join(args, " ")
+}
+
+// LoadFromFile loads the configuration from a file
+func LoadFromFile(filename string) (*MitmConfig, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("reading config file: %w", err)
+	}
+
+	config := &MitmConfig{}
+	if err := yaml.Unmarshal(data, config); err != nil {
+		return nil, fmt.Errorf("parsing config file: %w", err)
+	}
+
+	return config, nil
+}

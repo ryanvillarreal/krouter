@@ -1,6 +1,7 @@
 # App Specific
 backups
-
+# don't store the bin
+krouter
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
